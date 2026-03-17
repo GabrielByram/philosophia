@@ -1,2 +1,4 @@
 .claude
 .vscode
+dist/
+node_modules/

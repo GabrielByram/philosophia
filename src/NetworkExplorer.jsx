@@ -124,54 +124,33 @@ function PhilosophyExplorer() {
               ))}
             </defs>
 
-            {/* Connections */}
-            {CONNECTIONS.map(({ from, to, label }, i) => {
+            {/* Connection paths — rendered first so nodes paint over them */}
+            {CONNECTIONS.map(({ from, to }, i) => {
               const pf = PHILOSOPHERS[from];
               const pt = PHILOSOPHERS[to];
               const opacity = getConnectionOpacity(from, to);
               if (opacity === 0) return null;
-              const dx = pt.x - pf.x;
-              const dy = pt.y - pf.y;
+              const dx = pt.x - pf.x, dy = pt.y - pf.y;
               const dist = Math.sqrt(dx * dx + dy * dy);
               if (dist === 0) return null;
-              const nx = dx / dist;
-              const ny = dy / dist;
-              const sx = pf.x + nx * NODE_R;
-              const sy = pf.y + ny * NODE_R;
-              const ex = pt.x - nx * (NODE_R + 6);
-              const ey = pt.y - ny * (NODE_R + 6);
+              const nx = dx / dist, ny = dy / dist;
+              const sx = pf.x + nx * NODE_R, sy = pf.y + ny * NODE_R;
+              const ex = pt.x - nx * (NODE_R + 6), ey = pt.y - ny * (NODE_R + 6);
               const curvature = Math.min(0.15, 40 / dist);
-              const mx = (sx + ex) / 2 + (ny * dist * curvature);
-              const my = (sy + ey) / 2 - (nx * dist * curvature);
+              const mx = (sx + ex) / 2 + ny * dist * curvature;
+              const my = (sy + ey) / 2 - nx * dist * curvature;
               const isHighlighted = (selected && (from === selected || to === selected)) || (hoveredNode && (from === hoveredNode || to === hoveredNode));
-              const midX = (sx + 2 * mx + ex) / 4;
-              const midY = (sy + 2 * my + ey) / 4;
-
               return (
-                <g key={i} style={{ transition: "opacity 0.3s" }} opacity={opacity}>
-                  <path
-                    d={`M ${sx} ${sy} Q ${mx} ${my} ${ex} ${ey}`}
-                    fill="none"
-                    stroke={isHighlighted ? TRADITIONS[pf.tradition].color : "rgba(255,255,255,0.25)"}
-                    strokeWidth={isHighlighted ? 1.8 : 0.8}
-                    strokeDasharray={isHighlighted ? "none" : "3 3"}
-                    markerEnd="url(#arrowhead)"
-                  />
-                  {isHighlighted && label && (
-                    <text
-                      x={midX}
-                      y={midY - 6}
-                      textAnchor="middle"
-                      fill={TRADITIONS[pf.tradition].accent}
-                      fontSize={9}
-                      fontFamily="'JetBrains Mono', monospace"
-                      opacity={0.8}
-                      style={{ pointerEvents: "none" }}
-                    >
-                      {label}
-                    </text>
-                  )}
-                </g>
+                <path
+                  key={i}
+                  d={`M ${sx} ${sy} Q ${mx} ${my} ${ex} ${ey}`}
+                  fill="none"
+                  stroke={isHighlighted ? TRADITIONS[pf.tradition].color : "rgba(255,255,255,0.25)"}
+                  strokeWidth={isHighlighted ? 1.8 : 0.8}
+                  strokeDasharray={isHighlighted ? "none" : "3 3"}
+                  markerEnd="url(#arrowhead)"
+                  style={{ transition: "opacity 0.3s", opacity }}
+                />
               );
             })}
 
@@ -206,6 +185,42 @@ function PhilosophyExplorer() {
                     {p.years}
                   </text>
                 </g>
+              );
+            })}
+            {/* Connection labels — rendered last so they sit above nodes */}
+            {CONNECTIONS.map(({ from, to, label }, i) => {
+              if (!label) return null;
+              const pf = PHILOSOPHERS[from];
+              const pt = PHILOSOPHERS[to];
+              const isHighlighted = (selected && (from === selected || to === selected)) || (hoveredNode && (from === hoveredNode || to === hoveredNode));
+              if (!isHighlighted) return null;
+              const dx = pt.x - pf.x, dy = pt.y - pf.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist === 0) return null;
+              const nx = dx / dist, ny = dy / dist;
+              const sx = pf.x + nx * NODE_R, sy = pf.y + ny * NODE_R;
+              const ex = pt.x - nx * (NODE_R + 6), ey = pt.y - ny * (NODE_R + 6);
+              const curvature = Math.min(0.15, 40 / dist);
+              const mx = (sx + ex) / 2 + ny * dist * curvature;
+              const my = (sy + ey) / 2 - nx * dist * curvature;
+              const midX = (sx + 2 * mx + ex) / 4;
+              const midY = (sy + 2 * my + ey) / 4;
+              return (
+                <text
+                  key={i}
+                  x={midX}
+                  y={midY - 6}
+                  textAnchor="middle"
+                  fill={TRADITIONS[pf.tradition].accent}
+                  fontSize={11}
+                  fontFamily="'JetBrains Mono', monospace"
+                  stroke="rgba(15,15,20,0.85)"
+                  strokeWidth={3}
+                  paintOrder="stroke"
+                  style={{ pointerEvents: "none" }}
+                >
+                  {label}
+                </text>
               );
             })}
           </svg>

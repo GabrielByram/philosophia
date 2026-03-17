@@ -1401,13 +1401,27 @@ const ERAS = [
   { label: "20th Century", startYear: 1900, endYear: 2010, color: "rgba(155,77,90,0.06)", border: "rgba(155,77,90,0.18)" },
 ];
 
+// Piecewise linear scale — compresses the sparse medieval gap,
+// expands the dense modern eras so nodes aren't crushed together.
 function yearToY(sortYear) {
-  const minYear = -600;
-  const maxYear = 2010;
-  const topPad = 60;
-  const bottomPad = 60;
-  const totalHeight = 3200;
-  return topPad + ((sortYear - minYear) / (maxYear - minYear)) * (totalHeight - topPad - bottomPad);
+  const segments = [
+    { year: -600, y: 60 },
+    { year:   50, y: 480 },  // ancient: 5 philosophers
+    { year:  600, y: 620 },  // late antiquity: 2 philosophers
+    { year: 1450, y: 790 },  // medieval: 1 philosopher + long gap
+    { year: 1750, y: 1220 }, // early modern: 7 philosophers
+    { year: 1900, y: 1900 }, // 19th century: ~11 philosophers
+    { year: 2010, y: 2580 }, // 20th century: ~11 philosophers
+  ];
+  if (sortYear <= segments[0].year) return segments[0].y;
+  if (sortYear >= segments[segments.length - 1].year) return segments[segments.length - 1].y;
+  for (let i = 0; i < segments.length - 1; i++) {
+    const s = segments[i], e = segments[i + 1];
+    if (sortYear >= s.year && sortYear <= e.year) {
+      const t = (sortYear - s.year) / (e.year - s.year);
+      return s.y + t * (e.y - s.y);
+    }
+  }
 }
 
 // Assign x positions by tradition to create horizontal spread
@@ -1431,25 +1445,29 @@ Object.entries(PHILOSOPHERS).forEach(([id, p]) => {
   p.x = TRADITION_X[p.tradition] || 400;
 });
 
-// Resolve collisions with jitter
+// Resolve collisions — multiple passes, push in both x and y
 const positioned = Object.entries(PHILOSOPHERS).map(([id, p]) => ({ id, x: p.x, y: p.y }));
-for (let i = 0; i < positioned.length; i++) {
-  for (let j = i + 1; j < positioned.length; j++) {
-    const a = positioned[i], b = positioned[j];
-    const dx = a.x - b.x, dy = a.y - b.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 70) {
-      const pa = PHILOSOPHERS[a.id], pb = PHILOSOPHERS[b.id];
-      pa.x += 40;
-      pb.x -= 40;
-      a.x = pa.x;
-      b.x = pb.x;
+for (let pass = 0; pass < 4; pass++) {
+  for (let i = 0; i < positioned.length; i++) {
+    for (let j = i + 1; j < positioned.length; j++) {
+      const a = positioned[i], b = positioned[j];
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 90 && dist > 0) {
+        const nx = dx / dist, ny = dy / dist;
+        const push = (90 - dist) / 2;
+        const pa = PHILOSOPHERS[a.id], pb = PHILOSOPHERS[b.id];
+        pa.x += nx * push; pa.y += ny * push;
+        pb.x -= nx * push; pb.y -= ny * push;
+        a.x = pa.x; a.y = pa.y;
+        b.x = pb.x; b.y = pb.y;
+      }
     }
   }
 }
 
 const CANVAS_WIDTH = 900;
-const CANVAS_HEIGHT = 3300;
+const CANVAS_HEIGHT = 2700;
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────
 
